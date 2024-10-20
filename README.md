@@ -14,4 +14,4 @@ Assuming you have an LLM like Llama 3.1 running locally, feed the prompt followe
 Work is ongoing to automate the process as if you were using a real compiler.
 
 
-![screenshot of the trivial inbadders game compiled to html5 canvas from BASIC source](inbadders.mp4 "inbadders")
+![trivial inbadders game compiled to html5 canvas from BASIC source](inbadders.gif "inbadders")
