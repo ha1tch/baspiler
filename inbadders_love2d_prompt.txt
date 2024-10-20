@@ -1,0 +1,177 @@
+Generate a Lua + Love2d-based game acting as if you were a BASIC compiler. 
+The BASIC code assumes we are using the Pico8 palette, and the definitions
+of sprites use Pico8 palette indexes to define the sprites as pixmap arrays. 
+
+This is the Pico8 palette:
+Index 	Color 	Hex 	RGB 	Name
+0 		#000000 	0, 0, 0 	black
+1 		#1D2B53 	29, 43, 83 	dark-blue
+2 		#7E2553 	126, 37, 83 	dark-purple
+3 		#008751 	0, 135, 81 	dark-green
+4 		#AB5236 	171, 82, 54 	brown
+5 		#5F574F 	95, 87, 79 	dark-grey
+6 		#C2C3C7 	194, 195, 199 	light-grey
+7 		#FFF1E8 	255, 241, 232 	white
+8 		#FF004D 	255, 0, 77 	red
+9 		#FFA300 	255, 163, 0 	orange
+10 		#FFEC27 	255, 236, 39 	yellow
+11 		#00E436 	0, 228, 54 	green
+12 		#29ADFF 	41, 173, 255 	blue
+13 		#83769C 	131, 118, 156 	lavender
+14 		#FF77A8 	255, 119, 168 	pink
+15 		#FFCCAA 	255, 204, 170 	light-peach 
+
+Thus, when compiled targeting Lua + Love2d, the sprites are generated 
+ in memory using the pixmap definitions before the game starts, with a zoom multiplication factor of X8. 
+
+The complete game must be generated as a single Lua script that contains 
+everything.
+
+Here's the BASIC source code:
+
+10 DECLARE SPACESHIP AS SPRITE
+20 DECLARE INVADER AS SPRITE
+30 DECLARE BULLETS AS ARRAY(10) ' Supports up to 10 bullets
+40 DECLARE GAMEOVER AS BOOLEAN
+50 DECLARE SCORE AS INTEGER
+60 GAMEOVER = FALSE
+70 SCORE = 0
+
+80 CANVASWIDTH = 800
+90 CANVASHEIGHT = 600
+
+100 ' Key constants
+110 CONST KEY_LEFT = 37
+120 CONST KEY_RIGHT = 39
+130 CONST KEY_SPACE = 32
+
+140 ' Define the spaceship pixmap (40x8 grid)
+150 BEGINSPRITE SPACESHIP, WIDTH 40, HEIGHT 8
+160   PIXMAP  [ [0,0,12, 7,  7, 12, 0, 0],
+170            [0,7,  7,  7,  7,  7, 7, 0],
+180            [12,7,  7,  7,  7,  7, 7, 12],
+190            [12,7,  0,  7,  7,  0, 7, 12],
+200            [12,0,  0,  7,  7,  0, 0, 12] ]
+210 ENDSRITE
+
+220 ' Define the invader pixmap (40x5 grid)
+230 BEGINSPRITE INVADER, WIDTH 40, HEIGHT 5
+240   PIXMAP  [ [0, 2, 2, 2, 2, 2, 2, 0],
+250            [2, 2, 0, 0, 0, 0, 2, 2],
+260            [2, 2, 11, 11, 11, 11, 2, 2],
+270            [2, 0, 2, 2, 2, 2, 0, 2],
+280            [2, 0, 2, 0, 0, 2, 0, 2] ]
+290 ENDSRITE
+
+300 ' Define bullet structure
+310 TYPE BULLET
+320   X AS INTEGER
+330   Y AS INTEGER
+340   ACTIVE AS BOOLEAN
+350 END TYPE
+
+360 ' Initialize bullets
+370 FOR I = 0 TO 9
+380   BULLETS(I).ACTIVE = FALSE
+390 NEXT I
+
+400 ' Initialize game variables
+410 SPACESHIP.X = CANVASWIDTH / 2 - 20
+420 SPACESHIP.Y = CANVASHEIGHT - 50
+430 INVADER.X = 50
+440 INVADER.Y = 50
+450 INVADER.SPEED = 2
+460 INVADER.DIRECTION = 1 ' 1 for right, -1 for left
+
+470 SUB DRAWGAMEOVER
+480   SETFONT "Arial", 30
+490   SETCOLOR 7 ' White
+500   DRAWTEXT "GAME OVER", CANVASWIDTH / 2, CANVASHEIGHT / 2, ALIGNCENTER
+510   DRAWTEXT "SCORE: " + SCORE, CANVASWIDTH / 2, CANVASHEIGHT / 2 + 40, ALIGNCENTER
+520 END SUB
+
+530 SUB DRAWSCORE
+540   SETFONT "Arial", 20
+550   SETCOLOR 7 ' White
+560   DRAWTEXT "SCORE: " + SCORE, 10, 10, ALIGNLEFT
+570 END SUB
+
+580 SUB DRAWSPACESHIP
+590   DRAWSPRITE SPACESHIP, SPACESHIP.X, SPACESHIP.Y
+600 END SUB
+
+610 SUB DRAWINVADER
+620   DRAWSPRITE INVADER, INVADER.X, INVADER.Y
+630 END SUB
+
+640 SUB DRAWBULLETS
+650   FOR I = 0 TO 9
+660      IF BULLETS(I).ACTIVE THEN
+670         DRAWSPRITE BULLET, BULLETS(I).X, BULLETS(I).Y
+680      END IF
+690   NEXT I
+700 END SUB
+
+710 SUB MOVEBULLETS
+720   FOR I = 0 TO 9
+730      IF BULLETS(I).ACTIVE THEN
+740         BULLETS(I).Y = BULLETS(I).Y - 5 ' Move bullet up
+750         IF BULLETS(I).Y < 0 THEN BULLETS(I).ACTIVE = FALSE
+760         IF BULLETS(I).ACTIVE AND BULLETS(I).Y < INVADER.Y + 5 AND
+790            BULLETS(I).X > INVADER.X AND BULLETS(I).X < INVADER.X + 40 THEN
+800            BULLETS(I).ACTIVE = FALSE ' Deactivate bullet
+810            SCORE = SCORE + 100      ' Increase score
+820            INVADER.Y = 600          ' Move invader off-screen
+830         END IF
+840      END IF
+850   NEXT I
+860 END SUB
+
+870 SUB MOVESPACESHIP
+880   IF KEYISDOWN(KEY_LEFT) THEN SPACESHIP.X = SPACESHIP.X - 5
+890   IF KEYISDOWN(KEY_RIGHT) THEN SPACESHIP.X = SPACESHIP.X + 5
+900   IF KEYISDOWN(KEY_SPACE) THEN CALL SHOOTBULLET
+910 END SUB
+
+930 SUB SHOOTBULLET
+940   FOR I = 0 TO 9
+950      IF NOT BULLETS(I).ACTIVE THEN
+960         BULLETS(I).X = SPACESHIP.X + 20
+970         BULLETS(I).Y = SPACESHIP.Y - 10
+980         BULLETS(I).ACTIVE = TRUE
+990         EXIT FOR
+1000      END IF
+1010   NEXT I
+1020 END SUB
+
+1030 SUB MOVEINVADER
+1040   INVADER.X = INVADER.X + INVADER.SPEED * INVADER.DIRECTION
+1050   IF INVADER.X < 0 OR INVADER.X > CANVASWIDTH - 40 THEN
+1060      INVADER.DIRECTION = -INVADER.DIRECTION
+1070      INVADER.Y = INVADER.Y + 10 ' Move invader down
+1080   END IF
+1090 END SUB
+
+1110 SUB CHECKGAMEOVER
+1120   IF INVADER.Y > CANVASHEIGHT THEN GAMEOVER = TRUE
+1130 END SUB
+
+1140 SUB MAINLOOP
+1150   IF NOT GAMEOVER THEN
+1160      CLEARSCREEN
+1170      CALL DRAWSCORE
+1180      CALL DRAWSPACESHIP
+1190      CALL DRAWINVADER
+1200      CALL DRAWBULLETS
+1210      CALL MOVESPACESHIP
+1220      CALL MOVEBULLETS
+1230      CALL MOVEINVADER
+1240      CALL CHECKGAMEOVER
+1250   ELSE
+1260      CALL DRAWGAMEOVER
+1270   END IF
+1280   REDRAW
+1290   GOTO 1140
+1300 END SUB
+
+1400 CALL MAINLOOP
