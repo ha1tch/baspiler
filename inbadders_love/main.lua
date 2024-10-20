@@ -19,10 +19,6 @@ function love.load()
     GAMEOVER = false
     SCORE = 0
 
-    -- Load sprites
-    SPACESHIP.sprite = love.graphics.newImage("spaceship.png")
-    INVADER.sprite = love.graphics.newImage("invader.png")
-    
     -- Create sprites from pixmap definitions
     createSprites()
 end
@@ -57,6 +53,7 @@ function createSprites()
         {12,0,  0,  7,  7,  0, 0, 12}
     }
     SPACESHIP.image = createSpriteImage(SPACESHIP.pixels, colors)
+    print("Spaceship sprite created.")
 
     -- Create invader sprite
     INVADER.pixels = {
@@ -67,6 +64,7 @@ function createSprites()
         {2, 0, 2, 0, 0, 2, 0, 2}
     }
     INVADER.image = createSpriteImage(INVADER.pixels, colors)
+    print("Invader sprite created.")
 end
 
 function createSpriteImage(pixels, colors)
@@ -101,8 +99,8 @@ function love.draw()
     else
         love.graphics.clear(0, 0, 0)
         love.graphics.setColor(1, 1, 1)
-        love.graphics.draw(SPACESHIP.image, SPACESHIP.x, SPACESHIP.y, 0, 8, 8)
-        love.graphics.draw(INVADER.image, INVADER.x, INVADER.y, 0, 8, 8)
+        love.graphics.draw(SPACESHIP.image, SPACESHIP.x, SPACESHIP.y)
+        love.graphics.draw(INVADER.image, INVADER.x, INVADER.y)
         drawBullets()
         drawScore()
     end
@@ -183,6 +181,6 @@ end
 function love.keypressed(key)
     if GAMEOVER and key == "return" then
         -- Restart the game
-        love.load()
+        love.load()  -- You may want to call a reset function instead
     end
 end
