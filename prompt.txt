@@ -1,6 +1,13 @@
-Create an HTML5 canvas game that simulates the functionality of 
-a BASIC compiler. The game should interpret BASIC code that uses
-the Pico-8 palette, defining sprites as pixmap arrays based on 
-Pico-8 palette indexes. All sprite definitions must be processed
-in memory before the game starts. The final output should be a 
-single HTML5 file that encapsulates all game elements.
+Generate an HTML5 Canvas game acting as if you were a BASIC compiler. 
+The BASIC code assumes we are using the Pico8 palette, and the definitions
+of sprites use Pico8 palette indexes to define the sprites as pixmap arrays. 
+
+Thus, when compiled targeting HTML5 + Javascript, the sprites are generated 
+in Javascript in memory using the pixmap definitions before the game starts. 
+
+The complete game must be generated as a single HTML5 file that contains 
+everything.
+
+Here's the BASIC source code:
+
+<inbadders.bas>
