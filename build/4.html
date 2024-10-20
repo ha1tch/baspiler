@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Invader Game with PICO-8 Palette Sprites</title>
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            text-align: center;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background-color: black;
+            border: 2px solid white;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Space Invaders with PICO-8 Palette Sprites</h1>
+<canvas id="gameCanvas" width="480" height="320"></canvas>
+
+<script>
+// Set up the canvas and context
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// PICO-8 color palette
+const pico8Palette = [
+    "#000000", "#1D2B53", "#7E2553", "#008751", "#AB5236", "#5F574F",
+    "#C2C3C7", "#FFF1E8", "#FF004D", "#FFA300", "#FFEC27", "#00E436",
+    "#29ADFF", "#83769C", "#FF77A8", "#FFCCAA"
+];
+
+// Sprite definitions using palette indices (0-15)
+const spaceshipSprite = [
+    [ 0, 0,12, 7, 7,12, 0, 0],
+    [ 0, 7, 7, 7, 7, 7, 7, 0],
+    [12, 7, 7, 7, 7, 7, 7,12],
+    [12, 7, 0, 7, 7, 0, 7,12],
+    [12, 0, 0, 7, 7, 0, 0,12]
+];
+
+const invaderSprite = [
+    [0, 2, 2, 2, 2, 2, 2, 0],
+    [2, 2, 0, 0, 0, 0, 2, 2],
+    [2, 2,11,11,11,11, 2, 2],
+    [2, 0, 2, 2, 2, 2, 0, 2],
+    [2, 0, 2, 0, 0, 2, 0, 2]
+];
+
+// Settings
+const spaceshipScale = 5;
+const invaderScale = 5;
+const spaceshipWidth = spaceshipSprite[0].length * spaceshipScale;
+const spaceshipHeight = spaceshipSprite.length * spaceshipScale;
+const invaderWidth = invaderSprite[0].length * invaderScale;
+const invaderHeight = invaderSprite.length * invaderScale;
+const spaceshipSpeed = 5;
+const bulletWidth = 5;
+const bulletHeight = 10;
+const invaderSpeed = 2;
+
+let spaceshipX = (canvas.width - spaceshipWidth) / 2;
+let spaceshipY = canvas.height - spaceshipHeight - 10;
+let leftPressed = false;
+let rightPressed = false;
+let bullets = [];
+let invaderX = canvas.width / 2 - invaderWidth / 2;
+let invaderY = 30;
+let invaderDirection = 1; // 1 for moving right, -1 for moving left
+let gameOver = false;
+
+// Cache the sprites in memory
+const spaceshipTexture = createCachedSprite(spaceshipSprite, spaceshipScale);
+const invaderTexture = createCachedSprite(invaderSprite, invaderScale);
+
+// Handle keyboard input
+document.addEventListener('keydown', keyDownHandler);
+document.addEventListener('keyup', keyUpHandler);
+
+function keyDownHandler(e) {
+    if (e.key === 'ArrowRight') {
+        rightPressed = true;
+    } else if (e.key === 'ArrowLeft') {
+        leftPressed = true;
+    } else if (e.key === ' ') {
+        fireBullet();
+    }
+}
+
+function keyUpHandler(e) {
+    if (e.key === 'ArrowRight') {
+        rightPressed = false;
+    } else if (e.key === 'ArrowLeft') {
+        leftPressed = false;
+    }
+}
+
+// Function to fire a bullet
+function fireBullet() {
+    const bullet = {
+        x: spaceshipX + spaceshipWidth / 2 - bulletWidth / 2,
+        y: spaceshipY,
+        active: true
+    };
+    bullets.push(bullet);
+}
+
+// Function to cache a sprite into an off-screen canvas (texture)
+function createCachedSprite(sprite, scale) {
+    const offscreenCanvas = document.createElement('canvas');
+    const offscreenCtx = offscreenCanvas.getContext('2d');
+    
+    offscreenCanvas.width = sprite[0].length * scale;
+    offscreenCanvas.height = sprite.length * scale;
+
+    // Draw the sprite onto the off-screen canvas
+    for (let row = 0; row < sprite.length; row++) {
+        for (let col = 0; col < sprite[row].length; col++) {
+            const colorIndex = sprite[row][col];
+            if (colorIndex !== 0) { // Skip transparent pixels
+                offscreenCtx.fillStyle = pico8Palette[colorIndex];
+                offscreenCtx.fillRect(col * scale, row * scale, scale, scale);
+            }
+        }
+    }
+
+    return offscreenCanvas;
+}
+
+// Function to draw the spaceship (use cached texture)
+function drawSpaceship() {
+    ctx.drawImage(spaceshipTexture, spaceshipX, spaceshipY);
+}
+
+// Function to draw bullets
+function drawBullets() {
+    ctx.fillStyle = 'red';
+    bullets = bullets.filter(bullet => bullet.active);
+    bullets.forEach(bullet => {
+        ctx.fillRect(bullet.x, bullet.y, bulletWidth, bulletHeight);
+        bullet.y -= 5;
+        if (bullet.y < 0) bullet.active = false;
+
+        // Check if bullet hits the invader
+        if (bullet.x > invaderX && bullet.x < invaderX + invaderWidth &&
+            bullet.y > invaderY && bullet.y < invaderY + invaderHeight) {
+            bullet.active = false;
+            resetInvader(); // Reset invader after hit
+        }
+    });
+}
+
+// Function to draw the invader (use cached texture)
+function drawInvader() {
+    ctx.drawImage(invaderTexture, invaderX, invaderY);
+}
+
+// Function to move the spaceship
+function moveSpaceship() {
+    if (rightPressed && spaceshipX < canvas.width - spaceshipWidth) {
+        spaceshipX += spaceshipSpeed;
+    } else if (leftPressed && spaceshipX > 0) {
+        spaceshipX -= spaceshipSpeed;
+    }
+}
+
+// Function to move the invader
+function moveInvader() {
+    invaderX += invaderSpeed * invaderDirection;
+
+    // Change direction if invader hits canvas edges
+    if (invaderX <= 0 || invaderX + invaderWidth >= canvas.width) {
+        invaderDirection *= -1;
+        invaderY += 20; // Move down a bit when changing direction
+
+        // End the game if the invader reaches the bottom
+        if (invaderY + invaderHeight >= canvas.height - spaceshipHeight - 10) {
+            gameOver = true;
+        }
+    }
+}
+
+// Function to reset invader position after being hit
+function resetInvader() {
+    invaderX = Math.random() * (canvas.width - invaderWidth);
+    invaderY = 30;
+}
+
+
+function drawGameOver() {
+    ctx.font = '30px Arial';
+    ctx.fillStyle = 'white';
+    ctx.fillText('GAME OVER', canvas.width / 2 - 100, canvas.height / 2);
+}
+
+// Main game loop
+function draw() {
+    if (!gameOver) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        drawSpaceship();
+        drawBullets();
+        drawInvader();
+        moveSpaceship();
+        moveInvader();
+
+        requestAnimationFrame(draw);
+    } else {
+        drawGameOver();
+    }
+}
+
+// Start the game
+draw();
+</script>
+
+</body>
+</html>

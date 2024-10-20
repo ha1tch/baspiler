@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Invader Game with Bitmap Sprites</title>
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            text-align: center;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background-color: black;
+            border: 2px solid white;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Space Invaders with Bitmap Sprites</h1>
+<canvas id="gameCanvas" width="480" height="320"></canvas>
+
+<script>
+// Set up the canvas and context
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Bitmap definitions (0 = transparent, 1 = white)
+const spaceshipSprite = [
+    [0, 0, 1, 1, 1, 1, 0, 0],
+    [0, 1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 0, 1, 1, 0, 1, 1],
+    [1, 0, 0, 1, 1, 0, 0, 1]
+];
+
+const invaderSprite = [
+    [0, 1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 0, 0, 0, 0, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 1, 1, 1, 1, 0, 1],
+    [1, 0, 1, 0, 0, 1, 0, 1]
+];
+
+// Settings
+const spaceshipScale = 5;
+const invaderScale = 5;
+const spaceshipWidth = spaceshipSprite[0].length * spaceshipScale;
+const spaceshipHeight = spaceshipSprite.length * spaceshipScale;
+const invaderWidth = invaderSprite[0].length * invaderScale;
+const invaderHeight = invaderSprite.length * invaderScale;
+const spaceshipSpeed = 5;
+const bulletWidth = 5;
+const bulletHeight = 10;
+const invaderSpeed = 2;
+
+let spaceshipX = (canvas.width - spaceshipWidth) / 2;
+let spaceshipY = canvas.height - spaceshipHeight - 10;
+let leftPressed = false;
+let rightPressed = false;
+let bullets = [];
+let invaderX = canvas.width / 2 - invaderWidth / 2;
+let invaderY = 30;
+let invaderDirection = 1; // 1 for moving right, -1 for moving left
+let gameOver = false;
+
+// Handle keyboard input
+document.addEventListener('keydown', keyDownHandler);
+document.addEventListener('keyup', keyUpHandler);
+
+function keyDownHandler(e) {
+    if (e.key === 'ArrowRight') {
+        rightPressed = true;
+    } else if (e.key === 'ArrowLeft') {
+        leftPressed = true;
+    } else if (e.key === ' ') {
+        fireBullet();
+    }
+}
+
+function keyUpHandler(e) {
+    if (e.key === 'ArrowRight') {
+        rightPressed = false;
+    } else if (e.key === 'ArrowLeft') {
+        leftPressed = false;
+    }
+}
+
+// Function to fire a bullet
+function fireBullet() {
+    const bullet = {
+        x: spaceshipX + spaceshipWidth / 2 - bulletWidth / 2,
+        y: spaceshipY,
+        active: true
+    };
+    bullets.push(bullet);
+}
+
+// Function to draw a bitmap sprite on the canvas
+function drawSprite(sprite, x, y, scale) {
+    for (let row = 0; row < sprite.length; row++) {
+        for (let col = 0; col < sprite[row].length; col++) {
+            if (sprite[row][col] === 1) {
+                ctx.fillStyle = 'white';  // Change this color for different sprite colors
+                ctx.fillRect(x + col * scale, y + row * scale, scale, scale);
+            }
+        }
+    }
+}
+
+// Function to draw the spaceship
+function drawSpaceship() {
+    drawSprite(spaceshipSprite, spaceshipX, spaceshipY, spaceshipScale);
+}
+
+// Function to draw bullets
+function drawBullets() {
+    ctx.fillStyle = 'red';
+    bullets = bullets.filter(bullet => bullet.active);
+    bullets.forEach(bullet => {
+        ctx.fillRect(bullet.x, bullet.y, bulletWidth, bulletHeight);
+        bullet.y -= 5;
+        if (bullet.y < 0) bullet.active = false;
+
+        // Check if bullet hits the invader
+        if (bullet.x > invaderX && bullet.x < invaderX + invaderWidth &&
+            bullet.y > invaderY && bullet.y < invaderY + invaderHeight) {
+            bullet.active = false;
+            resetInvader(); // Reset invader after hit
+        }
+    });
+}
+
+// Function to draw the invader
+function drawInvader() {
+    drawSprite(invaderSprite, invaderX, invaderY, invaderScale);
+}
+
+// Function to move the spaceship
+function moveSpaceship() {
+    if (rightPressed && spaceshipX < canvas.width - spaceshipWidth) {
+        spaceshipX += spaceshipSpeed;
+    } else if (leftPressed && spaceshipX > 0) {
+        spaceshipX -= spaceshipSpeed;
+    }
+}
+
+// Function to move the invader
+function moveInvader() {
+    invaderX += invaderSpeed * invaderDirection;
+
+    // Change direction if invader hits canvas edges
+    if (invaderX <= 0 || invaderX + invaderWidth >= canvas.width) {
+        invaderDirection *= -1;
+        invaderY += 20; // Move down a bit when changing direction
+
+        // End the game if the invader reaches the bottom
+        if (invaderY + invaderHeight >= canvas.height - spaceshipHeight - 10) {
+            gameOver = true;
+        }
+    }
+}
+
+// Function to reset invader position after being hit
+function resetInvader() {
+    invaderX = Math.random() * (canvas.width - invaderWidth);
+    invaderY = 30;
+}
+
+// Function to draw game over text
+function drawGameOver() {
+    ctx.font = '30px Arial';
+    ctx.fillStyle = 'white';
+    ctx.fillText('GAME OVER', canvas.width / 2 - 100, canvas.height / 2);
+}
+
+// Main game loop
+function draw() {
+    if (!gameOver) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        drawSpaceship();
+        drawBullets();
+        drawInvader();
+        moveSpaceship();
+        moveInvader();
+
+        requestAnimationFrame(draw);
+    } else {
+        drawGameOver();
+    }
+}
+
+// Start the game
+draw();
+</script>
+
+</body>
+</html>
+

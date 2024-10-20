@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>BASIC Game</title>
+</head>
+<body>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+<script>
+// Pico-8 palette (in RGB)
+const PALETTE = [
+  [0, 0, 0], [29, 43, 83], [126, 161, 227], [223, 240, 255],
+  [2, 2, 2], [29, 54, 107], [126, 184, 233], [223, 255, 255],
+  [1, 1, 1], [29, 66, 132], [126, 207, 240], [223, 255, 255],
+  [0, 0, 0], [37, 82, 165], [134, 210, 255], [223, 255, 255],
+  [0, 0, 0], [45, 99, 198], [142, 232, 255], [223, 255, 255],
+  [0, 0, 0], [60, 126, 236], [150, 251, 255], [223, 255, 255],
+  [0, 0, 0], [75, 153, 255], [158, 255, 255], [223, 255, 255],
+  [0, 0, 0], [90, 180, 255], [166, 255, 255], [223, 255, 255],
+  [0, 0, 0], [105, 207, 255], [174, 255, 255], [223, 255, 255],
+  [0, 0, 0], [120, 234, 255], [182, 255, 255], [223, 255, 255],
+  [0, 0, 0], [135, 251, 255], [190, 255, 255], [223, 255, 255],
+  [0, 0, 0], [150, 255, 255], [198, 255, 255], [223, 255, 255],
+  [0, 0, 0], [165, 255, 255], [206, 255, 255], [223, 255, 255],
+  [0, 0, 0], [180, 255, 255], [214, 255, 255], [223, 255, 255],
+  [0, 0, 0], [195, 255, 255], [222, 255, 255], [223, 255, 255],
+  [0, 0, 0], [210, 255, 255], [230, 255, 255], [223, 255, 255],
+  [0, 0, 0], [225, 255, 255], [238, 255, 255], [223, 255, 255],
+  [0, 0, 0], [240, 255, 255], [246, 255, 255], [223, 255, 255],
+  [0, 0, 0], [255, 255, 255], [255, 255, 255], [223, 255, 255],
+];
+
+// Function to convert Pico-8 palette index to RGB
+function paletteToRGB(index) {
+  return PALETTE[index];
+}
+
+// Sprite data (in Pico-8 palette indices)
+const SPACESHIP = [
+  [0, 0, 12, 7, 7, 12, 0, 0],
+  [0, 7, 7, 7, 7, 7, 7, 0],
+  [12, 7, 7, 7, 7, 7, 7, 12],
+  [12, 7, 0, 7, 7, 0, 7, 12],
+  [12, 0, 0, 7, 7, 0, 0, 12]
+];
+
+const INVADER = [
+  [0, 2, 2, 2, 2, 2, 2, 0],
+  [2, 2, 0, 0, 0, 0, 2, 2],
+  [2, 2, 11, 11, 11, 11, 2, 2],
+  [2, 0, 2, 2, 2, 2, 0, 2],
+  [2, 0, 2, 0, 0, 2, 0, 2]
+];
+
+// Define Sprite class
+class Sprite {
+  constructor(width, height, data) {
+    this.width = width;
+    this.height = height;
+    this.data = data;
+    this.x = 0;
+    this.y = 0;
+  }
+
+  draw(ctx, x, y) {
+    this.x = x;
+    this.y = y;
+    for (let i = 0; i < this.height; i++) {
+      for (let j = 0; j < this.width; j++) {
+        let color = paletteToRGB(this.data[i][j]);
+        ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+        ctx.fillRect(x + j, y + i, 1, 1);
+      }
+    }
+  }
+}
+
+// Create sprite instances
+const spaceship = new Sprite(40, 8, SPACESHIP);
+const invader = new Sprite(40, 5, INVADER);
+
+// Bullet class
+class Bullet {
+  constructor() {
+    this.x = 0;
+    this.y = 0;
+    this.active = false;
+  }
+}
+
+// Initialize game variables
+const CANVASWIDTH = 800;
+const CANVASHEIGHT = 600;
+const KEY_LEFT = 37;
+const KEY_RIGHT = 39;
+const KEY_SPACE = 32;
+let gameOver = false;
+let score = 0;
+const bullets = [];
+for (let i = 0; i < 10; i++) {
+  bullets.push(new Bullet());
+}
+
+// Initialize object positions
+spaceship.x = CANVASWIDTH / 2 - 20;
+spaceship.y = CANVASHEIGHT - 50;
+invader.x = 50;
+invader.y = 50;
+invader.speed = 2;
+invader.direction = 1;
+
+// Game functions
+function drawGameOver(ctx) {
+  ctx.font = "30px Arial";
+  ctx.fillStyle = "rgb(255, 255, 255)"; // White
+  ctx.textAlign = "center";
+  ctx.fillText("GAME OVER", CANVASWIDTH / 2, CANVASHEIGHT / 2);
+  ctx.fillText("SCORE: " + score, CANVASWIDTH / 2, CANVASHEIGHT / 2 + 40);
+}
+
+function drawScore(ctx) {
+  ctx.font = "20px Arial";
+  ctx.fillStyle = "rgb(255, 255, 255)"; // White
+  ctx.textAlign = "left";
+  ctx.fillText("SCORE: " + score, 10, 10);
+}
+
+function drawSpaceship(ctx) {
+  spaceship.draw(ctx, spaceship.x, spaceship.y);
+}
+
+function drawInvader(ctx) {
+  invader.draw(ctx, invader.x, invader.y);
+}
+
+function drawBullets(ctx) {
+  for (let i = 0; i < bullets.length; i++) {
+    if (bullets[i].active) {
+      // Assuming a simple bullet sprite (a single white pixel)
+      ctx.fillStyle = "rgb(255, 255, 255)";
+      ctx.fillRect(bullets[i].x, bullets[i].y, 1, 1);
+    }
+  }
+}
+
+function moveBullets() {
+  for (let i = 0; i < bullets.length; i++) {
+    if (bullets[i].active) {
+      bullets[i].y -= 5; // Move bullet up
+      if (bullets[i].y < 0) {
+        bullets[i].active = false;
+      }
+      if (bullets[i].active &&
+          bullets[i].y < invader.y + 5 &&
+          bullets[i].x > invader.x &&
+          bullets[i].x < invader.x + 40) {
+        bullets[i].active = false; // Deactivate bullet
+        score += 100; // Increase score
+        invader.y = 600; // Move invader off-screen
+      }
+    }
+  }
+}
+
+function moveSpaceship(event) {
+  if (event.keyCode === KEY_LEFT) {
+    spaceship.x -= 5;
+  } else if (event.keyCode === KEY_RIGHT) {
+    spaceship.x += 5;
+  }
+}
+
+function shootBullet() {
+  for (let i = 0; i < bullets.length; i++) {
+    if (!bullets[i].active) {
+      bullets[i].x = spaceship.x + 20;
+      bullets[i].y = spaceship.y - 10;
+      bullets[i].active = true;
+      return; // Only shoot one bullet at a time
+    }
+  }
+}
+
+function moveInvader() {
+  invader.x += invader.speed * invader.direction;
+  if (invader.x < 0 || invader.x > CANVASWIDTH - 40) {
+    invader.direction = -invader.direction;
+    invader.y += 10; // Move invader down
+  }
+}
+
+function checkGameOver() {
+  if (invader.y > CANVASHEIGHT) {
+    gameOver = true;
+  }
+}
+
+function mainLoop() {
+  const canvas = document.getElementById("gameCanvas");
+  const ctx = canvas.getContext("2d");
+
+  if (!gameOver) {
+    ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
+    drawScore(ctx);
+    drawSpaceship(ctx);
+    drawInvader(ctx);
+    drawBullets(ctx);
+    moveBullets();
+    moveInvader();
+    checkGameOver();
+  } else {
+    drawGameOver(ctx);
+  }
+
+  requestAnimationFrame(mainLoop);
+}
+
+// Event listeners
+document.addEventListener("keydown", moveSpaceship);
+document.addEventListener("keydown", function(event) {
+  if (event.keyCode === KEY_SPACE) {
+    shootBullet();
+  }
+});
+
+// Start game loop
+mainLoop();
+
+</script>
+</body>
+</html>

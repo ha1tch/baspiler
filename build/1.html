@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Invader Game</title>
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            text-align: center;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background-color: black;
+            border: 2px solid white;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Space Invaders Arcade</h1>
+<canvas id="gameCanvas" width="480" height="320"></canvas>
+
+<script>
+// Set up the canvas and context
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Game settings
+const spaceshipWidth = 40;
+const spaceshipHeight = 20;
+const spaceshipSpeed = 5;
+const bulletWidth = 5;
+const bulletHeight = 10;
+const invaderSize = 30;
+
+let spaceshipX = (canvas.width - spaceshipWidth) / 2;
+let spaceshipY = canvas.height - spaceshipHeight - 10;
+let leftPressed = false;
+let rightPressed = false;
+let bullets = [];
+let invaderX = canvas.width / 2 - invaderSize / 2;
+let invaderY = 30;
+let invaderDirection = 1; // 1 for moving right, -1 for moving left
+let invaderSpeed = 2;
+let gameOver = false;
+
+// Handle keyboard input
+document.addEventListener('keydown', keyDownHandler);
+document.addEventListener('keyup', keyUpHandler);
+
+function keyDownHandler(e) {
+    if (e.key === 'ArrowRight') {
+        rightPressed = true;
+    } else if (e.key === 'ArrowLeft') {
+        leftPressed = true;
+    } else if (e.key === ' ') {
+        fireBullet();
+    }
+}
+
+function keyUpHandler(e) {
+    if (e.key === 'ArrowRight') {
+        rightPressed = false;
+    } else if (e.key === 'ArrowLeft') {
+        leftPressed = false;
+    }
+}
+
+// Function to fire a bullet
+function fireBullet() {
+    const bullet = {
+        x: spaceshipX + spaceshipWidth / 2 - bulletWidth / 2,
+        y: spaceshipY,
+        active: true
+    };
+    bullets.push(bullet);
+}
+
+// Function to draw the spaceship
+function drawSpaceship() {
+    ctx.fillStyle = 'white';
+    ctx.fillRect(spaceshipX, spaceshipY, spaceshipWidth, spaceshipHeight);
+}
+
+// Function to draw bullets
+function drawBullets() {
+    ctx.fillStyle = 'red';
+    bullets = bullets.filter(bullet => bullet.active);
+    bullets.forEach(bullet => {
+        ctx.fillRect(bullet.x, bullet.y, bulletWidth, bulletHeight);
+        bullet.y -= 5;
+        if (bullet.y < 0) bullet.active = false;
+
+        // Check if bullet hits the invader
+        if (bullet.x > invaderX && bullet.x < invaderX + invaderSize &&
+            bullet.y > invaderY && bullet.y < invaderY + invaderSize) {
+            bullet.active = false;
+            resetInvader(); // Reset invader after hit
+        }
+    });
+}
+
+// Function to draw the invader
+function drawInvader() {
+    ctx.fillStyle = 'green';
+    ctx.fillRect(invaderX, invaderY, invaderSize, invaderSize);
+}
+
+// Function to move the spaceship
+function moveSpaceship() {
+    if (rightPressed && spaceshipX < canvas.width - spaceshipWidth) {
+        spaceshipX += spaceshipSpeed;
+    } else if (leftPressed && spaceshipX > 0) {
+        spaceshipX -= spaceshipSpeed;
+    }
+}
+
+// Function to move the invader
+function moveInvader() {
+    invaderX += invaderSpeed * invaderDirection;
+
+    // Change direction if invader hits canvas edges
+    if (invaderX <= 0 || invaderX + invaderSize >= canvas.width) {
+        invaderDirection *= -1;
+        invaderY += 20; // Move down a bit when changing direction
+
+        // End the game if the invader reaches the bottom
+        if (invaderY + invaderSize >= canvas.height - spaceshipHeight - 10) {
+            gameOver = true;
+        }
+    }
+}
+
+// Function to reset invader position after being hit
+function resetInvader() {
+    invaderX = Math.random() * (canvas.width - invaderSize);
+    invaderY = 30;
+}
+
+// Function to draw game over text
+function drawGameOver() {
+    ctx.font = '30px Arial';
+    ctx.fillStyle = 'white';
+    ctx.fillText('GAME OVER', canvas.width / 2 - 100, canvas.height / 2);
+}
+
+// Main game loop
+function draw() {
+    if (!gameOver) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        drawSpaceship();
+        drawBullets();
+        drawInvader();
+        moveSpaceship();
+        moveInvader();
+
+        requestAnimationFrame(draw);
+    } else {
+        drawGameOver();
+    }
+}
+
+// Start the game
+draw();
+</script>
+
+</body>
+</html>
+

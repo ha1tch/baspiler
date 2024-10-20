@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Invader Game</title>
+    <style>
+        canvas { background: black; display: block; margin: 0 auto; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const CANVASWIDTH = canvas.width;
+        const CANVASHEIGHT = canvas.height;
+
+        const KEY_LEFT = 37;
+        const KEY_RIGHT = 39;
+        const KEY_SPACE = 32;
+
+        // Define the Pico-8 color palette
+        const pico8Palette = [
+            '#000000', '#1D2B53', '#7E2553', '#008751', '#AB5236', 
+            '#5F574F', '#C2C3C7', '#FFF1E8', '#FF77A8', '#D78B20', 
+            '#ABABAB', '#A0A0A0', '#D0D0D0', '#FFCC00', '#00E0FF', 
+            '#006EAB', '#D70000', '#00D700', '#D7D700', '#00D7D7', 
+            '#D700D7', '#7F7F7F', '#FFAA00', '#FFA0A0'
+        ];
+
+        // Spaceship pixmap (50x30 grid)
+        const spaceshipPixmap = [
+            [0, 0, 0, 0, 8, 8, 8, 8, 0, 0, 0, 0],
+            [0, 0, 0, 8, 8, 8, 8, 8, 8, 0, 0, 0],
+            [0, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0],
+            [0, 0, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0],
+            [0, 0, 0, 8, 8, 8, 8, 8, 8, 0, 0, 0]
+        ];
+
+        // Invader pixmap (40x40 grid)
+        const invaderPixmap = [
+            [0, 0, 0, 0, 3, 3, 3, 3, 0, 0, 0, 0],
+            [0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0],
+            [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+            [0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0]
+        ];
+
+        let spaceship = { x: CANVASWIDTH / 2 - 25, y: CANVASHEIGHT - 50 }; // Centered
+        let invader = { x: 50, y: 50, speed: 2, direction: 1 };
+        let bullets = Array.from({ length: 10 }, () => ({ x: 0, y: 0, active: false }));
+        let gameOver = false;
+        let score = 0;
+
+        // Draw the spaceship based on the pixmap
+        function drawSpaceship() {
+            for (let y = 0; y < spaceshipPixmap.length; y++) {
+                for (let x = 0; x < spaceshipPixmap[y].length; x++) {
+                    const colorIndex = spaceshipPixmap[y][x];
+                    if (colorIndex !== 0) { // 0 means transparent
+                        ctx.fillStyle = pico8Palette[colorIndex];
+                        ctx.fillRect(spaceship.x + x * 2, spaceship.y + y * 2, 2, 2); // Scale for visibility
+                    }
+                }
+            }
+        }
+
+        // Draw the invader based on the pixmap
+        function drawInvader() {
+            for (let y = 0; y < invaderPixmap.length; y++) {
+                for (let x = 0; x < invaderPixmap[y].length; x++) {
+                    const colorIndex = invaderPixmap[y][x];
+                    if (colorIndex !== 0) { // 0 means transparent
+                        ctx.fillStyle = pico8Palette[colorIndex];
+                        ctx.fillRect(invader.x + x * 2, invader.y + y * 2, 2, 2); // Scale for visibility
+                    }
+                }
+            }
+        }
+
+        // Draw the bullets
+        function drawBullets() {
+            bullets.forEach(bullet => {
+                if (bullet.active) {
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(bullet.x, bullet.y, 5, 15); // Bullet shape
+                }
+            });
+        }
+
+        // Move the bullets up
+        function moveBullets() {
+            bullets.forEach(bullet => {
+                if (bullet.active) {
+                    bullet.y -= 5; // Move bullet up
+                    if (bullet.y < 0) bullet.active = false; // Check if off-screen
+
+                    // Check for collision with invader
+                    if (bullet.active && bullet.y < invader.y + 40 && bullet.x > invader.x && bullet.x < invader.x + 40) {
+                        bullet.active = false; // Deactivate bullet
+                        score += 100; // Increase score
+                        invader.y = CANVASHEIGHT + 100; // Move invader off-screen
+                    }
+                }
+            });
+        }
+
+        // Move the spaceship left or right
+        function moveSpaceship() {
+            if (keys[KEY_LEFT] && spaceship.x > 0) spaceship.x -= 5; // Prevent moving off-screen
+            if (keys[KEY_RIGHT] && spaceship.x < CANVASWIDTH - 50) spaceship.x += 5; // Prevent moving off-screen
+            if (keys[KEY_SPACE]) shootBullet();
+        }
+
+        // Shoot a bullet
+        function shootBullet() {
+            for (let bullet of bullets) {
+                if (!bullet.active) {
+                    bullet.x = spaceship.x + 22; // Center bullet
+                    bullet.y = spaceship.y - 10; // Position above spaceship
+                    bullet.active = true; // Mark bullet as active
+                    break; // Exit loop after shooting
+                }
+            }
+        }
+
+        // Move the invader
+        function moveInvader() {
+            invader.x += invader.speed * invader.direction;
+            if (invader.x < 0 || invader.x > CANVASWIDTH - 40) {
+                invader.direction = -invader.direction;
+                invader.y += 10; // Move invader down
+            }
+        }
+
+        // Check if the game is over
+        function checkGameOver() {
+            if (invader.y > CANVASHEIGHT) gameOver = true;
+        }
+
+        const keys = {};
+        window.addEventListener('keydown', (e) => keys[e.keyCode] = true);
+        window.addEventListener('keyup', (e) => keys[e.keyCode] = false);
+
+        // Draw the game over screen
+        function drawGameOver() {
+            ctx.fillStyle = 'white';
+            ctx.font = '30px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('GAME OVER', CANVASWIDTH / 2, CANVASHEIGHT / 2);
+            ctx.fillText('SCORE: ' + score, CANVASWIDTH / 2, CANVASHEIGHT / 2 + 40);
+        }
+
+        // Main game loop
+        function mainLoop() {
+            if (!gameOver) {
+                ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT); // Clear screen
+                drawScore();
+                drawSpaceship();
+                drawInvader();
+                drawBullets();
+                moveSpaceship();
+                moveBullets();
+                moveInvader();
+                checkGameOver();
+            } else {
+                drawGameOver();
+            }
+            requestAnimationFrame(mainLoop); // Continue the loop
+        }
+
+        function drawScore() {
+            ctx.fillStyle = 'white';
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('SCORE: ' + score, 10, 30);
+        }
+
+        mainLoop(); // Start the game loop
+    </script>
+</body>
+</html>

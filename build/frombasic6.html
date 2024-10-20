@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Invader BASIC Game</title>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; }
+        canvas { border: 1px solid white; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script>
+        // Game constants
+        const CANVASWIDTH = 800;
+        const CANVASHEIGHT = 600;
+        const KEY_LEFT = 37;
+        const KEY_RIGHT = 39;
+        const KEY_SPACE = 32;
+
+        // Sprite definitions using the Pico8 palette
+        const SPRITE_SPACESHIP = [
+            [0, 0, 12, 7, 7, 12, 0, 0],
+            [0, 7, 7, 7, 7, 7, 7, 0],
+            [12, 7, 7, 7, 7, 7, 7, 12],
+            [12, 7, 0, 7, 7, 0, 7, 12],
+            [12, 0, 0, 7, 7, 0, 0, 12]
+        ];
+
+        const SPRITE_INVADER = [
+            [0, 2, 2, 2, 2, 2, 2, 0],
+            [2, 2, 0, 0, 0, 0, 2, 2],
+            [2, 2, 11, 11, 11, 11, 2, 2],
+            [2, 0, 2, 2, 2, 2, 0, 2],
+            [2, 0, 2, 0, 0, 2, 0, 2]
+        ];
+
+        // Game variables
+        let gameOver = false;
+        let score = 0;
+
+        // SpaceShip Object
+        let spaceshipX = CANVASWIDTH / 2 - 20;
+        let spaceshipY = CANVASHEIGHT - 50;
+
+        // Invader Object
+        let invaderX = 50;
+        let invaderY = 50;
+        let invaderSpeed = 2;
+        let invaderDirection = 1;
+
+        // Bullet structure
+        let bullets = [];
+        for (let i = 0; i < 10; i++) {
+            bullets.push({ x: 0, y: 0, active: false });
+        }
+
+        // Get the canvas and context
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // Draw a sprite on the canvas
+        function drawSprite(sprite, x, y) {
+            for (let row = 0; row < sprite.length; row++) {
+                for (let col = 0; col < sprite[row].length; col++) {
+                    const color = sprite[row][col];
+                    if (color !== 0) { // 0 means transparent
+                        ctx.fillStyle = getColor(color);
+                        ctx.fillRect(x + col, y + row, 1, 1); // Draw pixels
+                    }
+                }
+            }
+        }
+
+        // Map Pico8 color index to actual colors
+        function getColor(index) {
+            const colors = [
+                '#000000', '#1D2B53', '#7E2553', '#008751', '#AB5236',
+                '#5F574F', '#C2C3C7', '#FFF1E8', '#FF004D', '#FFA300',
+                '#FFEC27', '#00E436', '#29ADFF', '#8377E1', '#FF77A8',
+                '#FFCCAA', '#FFFFFF'
+            ];
+            return colors[index];
+        }
+
+        // Draw functions
+        function drawGameOver() {
+            ctx.font = "30px Arial";
+            ctx.fillStyle = "#FFFFFF";
+            ctx.textAlign = "center";
+            ctx.fillText("GAME OVER", CANVASWIDTH / 2, CANVASHEIGHT / 2);
+            ctx.fillText("SCORE: " + score, CANVASWIDTH / 2, CANVASHEIGHT / 2 + 40);
+        }
+
+        function drawScore() {
+            ctx.font = "20px Arial";
+            ctx.fillStyle = "#FFFFFF";
+            ctx.textAlign = "left";
+            ctx.fillText("SCORE: " + score, 10, 30);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
+            if (!gameOver) {
+                drawScore();
+                drawSprite(SPRITE_SPACESHIP, spaceshipX, spaceshipY);
+                drawSprite(SPRITE_INVADER, invaderX, invaderY);
+                bullets.forEach(bullet => {
+                    if (bullet.active) {
+                        drawSprite([[12]], bullet.x, bullet.y); // Draw bullet as a single pixel (12 is an arbitrary color)
+                    }
+                });
+            } else {
+                drawGameOver();
+            }
+        }
+
+        // Move functions
+        function moveBullets() {
+            bullets.forEach((bullet, index) => {
+                if (bullet.active) {
+                    bullet.y -= 5; // Move bullet up
+                    if (bullet.y < 0) bullet.active = false; // Deactivate if off screen
+
+                    // Check collision with invader
+                    if (bullet.active && bullet.y < invaderY + 5 &&
+                        bullet.x > invaderX && bullet.x < invaderX + 40) {
+                        bullet.active = false; // Deactivate bullet
+                        score += 100; // Increase score
+                        invaderY = 600; // Move invader off-screen
+                    }
+                }
+            });
+        }
+
+        function moveSpaceship() {
+            if (keyState[KEY_LEFT]) spaceshipX -= 5;
+            if (keyState[KEY_RIGHT]) spaceshipX += 5;
+            if (keyState[KEY_SPACE]) shootBullet();
+        }
+
+        function shootBullet() {
+            for (let i = 0; i < bullets.length; i++) {
+                if (!bullets[i].active) {
+                    bullets[i].x = spaceshipX + 20;
+                    bullets[i].y = spaceshipY - 10;
+                    bullets[i].active = true;
+                    break; // Shoot only one bullet at a time
+                }
+            }
+        }
+
+        function moveInvader() {
+            invaderX += invaderSpeed * invaderDirection;
+            if (invaderX < 0 || invaderX > CANVASWIDTH - 40) {
+                invaderDirection = -invaderDirection;
+                invaderY += 10; // Move invader down
+            }
+        }
+
+        function checkGameOver() {
+            if (invaderY > CANVASHEIGHT) gameOver = true;
+        }
+
+        // Key handling
+        const keyState = {};
+        window.addEventListener("keydown", (e) => { keyState[e.keyCode] = true; });
+        window.addEventListener("keyup", (e) => { keyState[e.keyCode] = false; });
+
+        // Main loop
+        function mainLoop() {
+            if (!gameOver) {
+                moveSpaceship();
+                moveBullets();
+                moveInvader();
+                checkGameOver();
+            }
+            draw();
+            requestAnimationFrame(mainLoop);
+        }
+
+        // Start the game loop
+        mainLoop();
+    </script>
+</body>
+</html>
